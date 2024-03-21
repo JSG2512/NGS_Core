@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model channel {
+  id              BigInt            @id @default(autoincrement())
+  owner_user_id   BigInt            @default(autoincrement())
+  name            String?
+  type            String?
+  channel_message channel_message[]
+  server_channels server_channels[]
+}
+
+model channel_message {
+  id                  BigInt           @id @default(autoincrement())
+  user_id             BigInt           @default(autoincrement())
+  channel_id          BigInt           @default(autoincrement())
+  text                String?
+  attachments         String[]
+  attachment_provider String?
+  channel             channel          @relation(fields: [channel_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "channel_id")
+  user                user             @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "user_id")
+  message_emojis      message_emojis[]
+}
+
+model direct_message {
+  id                                          BigInt   @id @default(autoincrement())
+  sender_user_id                              BigInt   @default(autoincrement())
+  recipient_user_id                           BigInt   @default(autoincrement())
+  text                                        String
+  attachments                                 String[]
+  attachment_provider                         String?
+  user_direct_message_recipient_user_idTouser user     @relation("direct_message_recipient_user_idTouser", fields: [recipient_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "recipient_user_id")
+  user_direct_message_sender_user_idTouser    user     @relation("direct_message_sender_user_idTouser", fields: [sender_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "sender_user_id")
+}
+
+model emoji {
+  id                    BigInt           @id @default(autoincrement())
+  server_id             BigInt           @default(autoincrement())
+  name                  String           @unique(map: "name")
+  url                   String?
+  public_access_allowed Boolean?
+  server                server           @relation(fields: [server_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "server_id")
+  message_emojis        message_emojis[]
+}
+
+model message_emojis {
+  message_id      BigInt          @default(autoincrement())
+  emoji_id        BigInt          @default(autoincrement())
+  emoji           emoji           @relation(fields: [emoji_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "emoji_id")
+  channel_message channel_message @relation(fields: [message_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "message_id")
+
+  @@id([message_id, emoji_id])
+}
+
+model server {
+  id                    BigInt            @id @default(autoincrement())
+  owner_user_id         BigInt            @default(autoincrement())
+  name                  String
+  description           String?
+  profile_image_url     String?
+  public_access_allowed Boolean?
+  emoji                 emoji[]
+  user                  user              @relation(fields: [owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "user_id")
+  server_channels       server_channels[]
+  server_users          server_users[]
+}
+
+model server_channels {
+  server_id  BigInt  @default(autoincrement())
+  channel_id BigInt  @default(autoincrement())
+  channel    channel @relation(fields: [channel_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "channel_id")
+  server     server  @relation(fields: [server_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "server_id")
+
+  @@id([server_id, channel_id])
+  @@map("server-channels")
+}
+
+model server_users {
+  server_id BigInt @default(autoincrement())
+  user_id   BigInt @default(autoincrement())
+  server    server @relation(fields: [server_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "server_id")
+  user      user   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "user_id")
+
+  @@id([server_id, user_id])
+}
+
+model user {
+  id                                                    BigInt            @id @default(autoincrement())
+  email                                                 String?           @unique(map: "email")
+  nickname                                              String?
+  password                                              String?
+  password_salt                                         String?
+  email_acceptance                                      String?
+  profile_image_url                                     String?
+  description                                           String?
+  is_paid                                               String?
+  phone                                                 String?
+  refresh_token                                         String?
+  channel_message                                       channel_message[]
+  direct_message_direct_message_recipient_user_idTouser direct_message[]  @relation("direct_message_recipient_user_idTouser")
+  direct_message_direct_message_sender_user_idTouser    direct_message[]  @relation("direct_message_sender_user_idTouser")
+  server                                                server[]
+  server_users                                          server_users[]
+  user_friends_user_friends_recipient_user_idTouser     user_friends[]    @relation("user_friends_recipient_user_idTouser")
+  user_friends_user_friends_requestor_user_idTouser     user_friends[]    @relation("user_friends_requestor_user_idTouser")
+}
+
+model user_friends {
+  requestor_user_id                         BigInt @default(autoincrement())
+  recipient_user_id                         BigInt @default(autoincrement())
+  status                                    String @default("sent")
+  user_user_friends_recipient_user_idTouser user   @relation("user_friends_recipient_user_idTouser", fields: [recipient_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "recipient_user_id")
+  user_user_friends_requestor_user_idTouser user   @relation("user_friends_requestor_user_idTouser", fields: [requestor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "requestor_user_id")
+
+  @@id([requestor_user_id, recipient_user_id])
+}
